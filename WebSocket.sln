@@ -1,0 +1,43 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32210.238
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebSocket.Beetlex.Server", "src\WebSocket.Beetlex.Server\WebSocket.Beetlex.Server.csproj", "{83934557-B693-404F-BD7C-B327F54709AF}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebSocket.ASP.Server", "src\WebSocket.ASP.Server\WebSocket.ASP.Server.csproj", "{546ADFDE-F67D-4CB7-9337-901004199C43}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebSocket.Client", "src\WebSocket.Client\WebSocket.Client.csproj", "{E3B22EC6-2A94-4963-960C-B879856FBF34}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebSocket.Contract", "src\WebSocket.Contract\WebSocket.Contract.csproj", "{FA075A22-6879-42E8-876B-D02361B22EBB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{83934557-B693-404F-BD7C-B327F54709AF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{83934557-B693-404F-BD7C-B327F54709AF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{83934557-B693-404F-BD7C-B327F54709AF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{83934557-B693-404F-BD7C-B327F54709AF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{546ADFDE-F67D-4CB7-9337-901004199C43}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{546ADFDE-F67D-4CB7-9337-901004199C43}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{546ADFDE-F67D-4CB7-9337-901004199C43}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{546ADFDE-F67D-4CB7-9337-901004199C43}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E3B22EC6-2A94-4963-960C-B879856FBF34}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E3B22EC6-2A94-4963-960C-B879856FBF34}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E3B22EC6-2A94-4963-960C-B879856FBF34}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E3B22EC6-2A94-4963-960C-B879856FBF34}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FA075A22-6879-42E8-876B-D02361B22EBB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FA075A22-6879-42E8-876B-D02361B22EBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FA075A22-6879-42E8-876B-D02361B22EBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FA075A22-6879-42E8-876B-D02361B22EBB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {06C9A86D-9C66-4F25-88B0-6E982C6A7645}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Google.Protobuf" Version="3.22.0" />
+		<PackageReference Include="Google.ProtocolBuffers" Version="2.4.1.555" />
+	</ItemGroup>
+	
+</Project>
