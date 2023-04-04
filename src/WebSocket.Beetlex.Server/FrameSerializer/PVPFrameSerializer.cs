@@ -6,6 +6,7 @@ using BeetleX.FastHttpApi.WebSockets;
 using Carbon.Match.Contact;
 using Carbon.Match.Utility;
 using Google.Protobuf;
+using Server.Protocols;
 
 namespace Carbon.Match.FrameSerializer
 {
@@ -21,7 +22,7 @@ namespace Carbon.Match.FrameSerializer
                     if (data.FIN == true)
                     {
                         bytes = stream.ReadBytes((int)data.Length);
-                        return PVPMessage.Parser.ParseFrom(bytes.Data, bytes.Offset, bytes.Count);
+                        return PvPMessage.Parser.ParseFrom(bytes.Data, bytes.Offset, bytes.Count);
                     }
                     else
                     {
@@ -49,7 +50,7 @@ namespace Carbon.Match.FrameSerializer
 
         public ArraySegment<byte> FrameSerialize(DataFrame packet, object body, HttpRequest request)
         {
-            var pvpMessage = (PVPMessage)body;
+            var pvpMessage = (PvPMessage)body;
             var bytes = pvpMessage.ToByteArray();
             var data = new ArraySegment<byte>(bytes, 0, bytes.Length);
             return data;

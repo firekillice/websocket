@@ -1,60 +1,87 @@
 ﻿using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using System;
+using System.Buffers;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Carbon.Match.Networking
+namespace Carbon.Match.New.Networking
 {
     public class WebSocketMiddleware
     {
-        private readonly RequestDelegate _next;
-        private WebSocketHandler _webSocketHandler { get; set; }
+        private readonly RequestDelegate next;
+        private WebSocketHandler webSocketHandler { get; set; }
+        private readonly ILogger logger;
+        private const int PageSize = 4 * 1024;
 
-        public WebSocketMiddleware(RequestDelegate next, WebSocketHandler webSocketHandler)
+        public WebSocketMiddleware(RequestDelegate next, WebSocketHandler webSocketHandler, ILogger<WebSocketMiddleware> logger)
         {
-            _next = next;
-            _webSocketHandler = webSocketHandler;
+            this.next = next;
+            this.webSocketHandler = webSocketHandler;
+            this.logger = logger;
         }
 
-        public async Task Invoke(HttpContext context)
+        public async Task InvokeAsync(HttpContext context)
         {
             if (!context.WebSockets.IsWebSocketRequest)
             {
-                await _next(context);
+                await this.next(context);
                 return;
             }
 
             var socket = await context.WebSockets.AcceptWebSocketAsync();
-            await _webSocketHandler.OnConnected(socket);
+            this.webSocketHandler.OnConnected(context, socket);
 
-            await Receive(socket, async (result, buffer) =>
+            await this.ReceiveAsync(context, socket, async (messageType, buffer, count) =>
             {
-                if (result.MessageType == WebSocketMessageType.Text)
+                if (messageType == WebSocketMessageType.Binary)
                 {
-                    await _webSocketHandler.ReceiveAsync(socket, result, buffer);
+                    this.webSocketHandler.Receive(context, socket, buffer, count);
                     return;
                 }
-
-                else if (result.MessageType == WebSocketMessageType.Close)
+                else if (messageType == WebSocketMessageType.Close)
                 {
-                    await _webSocketHandler.OnDisconnected(socket);
+                    this.webSocketHandler.OnDisconnected(context, socket);
                     return;
                 }
 
             });
         }
 
-        public async Task Receive(WebSocket socket, Action<WebSocketReceiveResult, byte[]> handleMessage)
+        public async Task ReceiveAsync(HttpContext context, WebSocket socket, Action<WebSocketMessageType, byte[], int> handleMessage)
         {
-            var buffer = new byte[1024 * 4];
-
             while (socket.State == WebSocketState.Open)
             {
-                var result = await socket.ReceiveAsync(buffer: new ArraySegment<byte>(buffer),
-                                                        cancellationToken: CancellationToken.None);
+                try
+                {
+                    var endOfMessage = false;
+                    var writer = new ArrayBufferWriter<byte>();
 
-                handleMessage(result, buffer);
+                    while (!endOfMessage)
+                    {
+                        var buffer = writer.GetMemory(PageSize);
+                        var result = await socket.ReceiveAsync(buffer, CancellationToken.None);
+                        writer.Advance(result.Count);
+                        endOfMessage = result.EndOfMessage;
+
+                        if (result.EndOfMessage && (result.MessageType == WebSocketMessageType.Binary || result.MessageType == WebSocketMessageType.Close))
+                        {
+                            handleMessage(result.MessageType, writer.WrittenSpan.ToArray(), writer.WrittenCount);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (socket.State == WebSocketState.Open)
+                    {
+                        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, ex.Message, CancellationToken.None);
+                    }
+                    handleMessage(WebSocketMessageType.Close, null, 0);
+
+                    this.logger.LogError($"Catched exception {ex.Message}");
+                    break;
+                }
             }
         }
     }

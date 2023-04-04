@@ -9,6 +9,7 @@ using System;
 using Carbon.Match.Utility;
 using System.Collections.Concurrent;
 using BeetleX;
+using Server.Protocols;
 
 namespace Carbon.Match.Networking
 {
@@ -48,7 +49,7 @@ namespace Carbon.Match.Networking
                 throw new Exception(PVPExceptions.SPECIFIC_ROOM_NOT_EXISTS);
             }
 
-            var pvpMessage = (PVPMessage)args.Frame.Body;
+            var pvpMessage = (PvPMessage)args.Frame.Body;
             if (pvpMessage != null)
             {
                 //LogUtility.SessionLog(LogType.Info, args.Sesson, "Player {0} receive message type {1}.", pidString, pvpMessage.Type);

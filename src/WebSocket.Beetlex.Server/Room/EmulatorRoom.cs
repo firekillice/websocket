@@ -6,14 +6,9 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using BeetleX;
 using BeetleX.EventArgs;
-using Carbon.Core.Contracts.Match;
-using Carbon.Core.Shared.Match;
-using Carbon.Match.Contact;
 using Carbon.Match.Message;
 using Carbon.Match.Utility;
-using Carbon.PvP.Core;
-using Carbon.PvP.Networking;
-using Orleans;
+using Server.Protocols;
 
 namespace Carbon.Match.Room
 {
@@ -56,10 +51,8 @@ namespace Carbon.Match.Room
         /// </summary>
         private readonly IRoomManager roomManager;
 
-        private readonly GameContext room;
-
-        private readonly ConcurrentQueue<PVPMessage> homeMessages = new();
-        private readonly ConcurrentQueue<PVPMessage> awayMessages = new();
+        private readonly ConcurrentQueue<PvPMessage> homeMessages = new();
+        private readonly ConcurrentQueue<PvPMessage> awayMessages = new();
 
         private const int ScheduleIntervalMs = 100;
         private const int ForceShutdownCount = 60 * 1000 / ScheduleIntervalMs;
@@ -78,7 +71,6 @@ namespace Carbon.Match.Room
             this.RoomId = Guid.NewGuid().ToString();
             this.roomManager = rManager;
             this.CallbackUrl = callbackUrl;
-            this.room = new();
 
             (new Task(async () => await this.RunAsync())).Start();
         }
@@ -137,7 +129,7 @@ namespace Carbon.Match.Room
         /// <param name="pid"></param>
         /// <param name="session"></param>
         /// <param name="pvpMesage"></param>
-        public void QueueMessage(long pid, ISession session, PVPMessage pvpMesage)
+        public void QueueMessage(long pid, ISession session, PvPMessage pvpMesage)
         {
             if (!this.disposed)
             {
@@ -190,7 +182,6 @@ namespace Carbon.Match.Room
                             }
                             else
                             {
-                                this.room.Abort();
                                 this.shutdown = true;
                                 idle = 0;
                                 LogUtility.Log(LogType.Info, "Room roomId={0} is shutdowning due to idle.", this.RoomId);
@@ -207,55 +198,18 @@ namespace Carbon.Match.Room
                     {
                         if (this.homeMessages.TryDequeue(out var message))
                         {
-                            var (b, sequenceNo, responseSequenceNo) = MessageConverter.Read(message);
-                            this.room.EnqueueIncomingMessage(ConnectionRole.Home, b, sequenceNo, responseSequenceNo);
 
-                            //this.SendMessage(this.Away, message);
-
-                            //LogUtility.Log(LogType.Debug, "Room roomId={0} is handling message from {1}, reset {2}.", this.RoomId, this.Home, this.homeMessages.Count);
+                            this.SendMessage(this.Away, message);
                         }
                     }
                     while (!this.awayMessages.IsEmpty)
                     {
                         if (this.awayMessages.TryDequeue(out var message))
                         {
-                            var (b, sequenceNo, responseSequenceNo) = MessageConverter.Read(message);
-                            this.room.EnqueueIncomingMessage(ConnectionRole.Away, b, sequenceNo, responseSequenceNo);
-
-                            //this.SendMessage(this.Home, message);
-                            //LogUtility.Log(LogType.Debug, "Room roomId={0} is handling message from {1} msg reset {2}.", this.RoomId, this.Away, this.awayMessages.Count);
+                            this.SendMessage(this.Home, message);
                         }
                     }
 
-                    this.room.Ready();
-
-                    while (this.room.TryDequeueOutgoingMessage(out var role, out var b, out var sequenceNo, out var responseSequenceNo))
-                    {
-                        var playerId = role == ConnectionRole.Home ? this.Home : this.Away;
-                        try
-                        {
-                            this.SendMessage(playerId, MessageConverter.Write(b, sequenceNo, responseSequenceNo));
-                        }
-                        catch (Exception ex)
-                        {
-                            LogUtility.Log(LogType.Error, "Room roomId={0} failed to send message to {1} due to exception {2}.", this.RoomId, playerId, ex.Message);
-                        }
-                    }
-
-                    while (this.room.TryDequeueEvent(out var @event))
-                    {
-                        if (@event is MatchEndEvent match)
-                        {
-                            LogUtility.Log(LogType.Debug, "Room roomId={0} received match-done from inner event", this.RoomId);
-                            this.TryMatchDone(match.Match);
-                        }
-                        else
-                        {
-                            LogUtility.Log(LogType.Warring, "Room roomId={0} receive unexpected evnet type {1}.", this.RoomId, @event);
-                        }
-                    }
-
-                    this.room.Advance();
 
                     var delayMs = ScheduleIntervalMs - (int)(DateTime.Now - startTime).TotalMilliseconds;
                     if (delayMs > 0)
@@ -270,87 +224,8 @@ namespace Carbon.Match.Room
             }
             finally
             {
-                this.TryMatchDone(null);
                 this.roomManager.DestoryRoom(this.RoomId);
                 LogUtility.Log(LogType.Debug, "Room roomId={0} is finishing in try-catch-finaly.", this.RoomId);
-            }
-        }
-
-        /// <summary>
-        /// 尝试通知逻辑服，避免重复，使用独立Task运行
-        /// </summary>
-        /// <param name="match"></param>
-        private void TryMatchDone(Carbon.Protocols.Match? match)
-        {
-            if (!this.done)
-            {
-                this.OnMatchDoneAsync(match).Ignore();
-            }
-        }
-
-        private async Task OnMatchDoneAsync(Carbon.Protocols.Match? match)
-        {
-            if (!this.done)
-            {
-                this.done = true;
-
-                try
-                {
-                    if (match is null)
-                    {
-                        if (this.RoomType == MatchTypeConstant.PVP)
-                        {
-                            await this.SendMatchDoneAsync(-1, -1);
-                        }
-                    }
-                    else
-                    {
-                        if (this.RoomType == MatchTypeConstant.PVP)
-                        {
-                            await this.SendMatchDoneAsync((int)match.Statistics.Home.Statistics.Runs, (int)match.Statistics.Away.Statistics.Runs);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LogUtility.Log(LogType.Error, "Room roomId={0} catched exception {1} when match-done.", this.RoomId, ex.Message);
-                }
-            }
-        }
-
-        /// <summary>
-        /// 发送结果
-        /// </summary>
-        /// <param name="homeScore"></param>
-        /// <param name="awayScore"></param>
-        /// <returns></returns>
-        private async Task SendMatchDoneAsync(int homeScore, int awayScore)
-        {
-            try
-            {
-                HttpClient httpClient = new();
-                httpClient.Timeout = TimeSpan.FromSeconds(30);
-
-                using StringContent jsonContent = new(JsonSerializer.Serialize(new ExternalMatchPVPEndRequest
-                {
-                    MatchType = this.RoomType,
-                    RoomId = CtrlRoomId,
-                    HomeId = this.Home,
-                    AwayId = this.Away,
-                    HomeScore = homeScore,
-                    AwayScore = awayScore,
-                }), Encoding.UTF8, "application/json");
-
-                var ressponse = await httpClient.PostAsync(this.CallbackUrl, jsonContent);
-                if (ressponse.StatusCode != System.Net.HttpStatusCode.OK)
-                {
-                    LogUtility.Log(LogType.Error, "Room {0} requested received http error code {1}, content {2} on match-done .",
-                        this.RoomId, ressponse.StatusCode, ressponse.Content);
-                }
-            }
-            catch (Exception ex)
-            {
-                LogUtility.Log(LogType.Error, "Room {0} requested received exception {1} on match-done,handled {2} messages.", this.RoomId, ex.Message);
             }
         }
 
@@ -359,7 +234,7 @@ namespace Carbon.Match.Room
         /// </summary>
         /// <param name="pid"></param>
         /// <param name="pvpMessage"></param>
-        public void SendMessage(long pid, PVPMessage pvpMessage)
+        public void SendMessage(long pid, PvPMessage pvpMessage)
         {
             if (pid == this.Home && this.HomePlayer != null)
             {

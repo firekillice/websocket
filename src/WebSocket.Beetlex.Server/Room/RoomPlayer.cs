@@ -4,6 +4,7 @@ using BeetleX.EventArgs;
 using BeetleX.FastHttpApi.WebSockets;
 using Carbon.Match.Contact;
 using Carbon.Match.Utility;
+using Server.Protocols;
 
 namespace Carbon.Match.Room
 {
@@ -36,7 +37,7 @@ namespace Carbon.Match.Room
         /// 发送内容
         /// </summary>
         /// <param name="message"></param>
-        public void Send(PVPMessage message)
+        public void Send(PvPMessage message)
         {
             try
             {

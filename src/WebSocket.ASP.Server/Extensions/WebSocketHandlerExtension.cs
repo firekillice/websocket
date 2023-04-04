@@ -1,10 +1,10 @@
-﻿using Carbon.Match.Networking;
+﻿using Carbon.Match.New.Networking;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
 
-namespace Carbon.Match.Extensions
+namespace Carbon.Match.New.Extensions
 {
     public static class WebSocketHandlerExtension
     {
@@ -17,8 +17,6 @@ namespace Carbon.Match.Extensions
 
         public static IServiceCollection AddWebSocketManager(this IServiceCollection services)
         {
-            services.AddTransient<WebSocketConnectionManager>();
-
             foreach (var type in Assembly.GetEntryAssembly().ExportedTypes)
             {
                 if (type.GetTypeInfo() == typeof(WebSocketHandler))

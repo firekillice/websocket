@@ -1,8 +1,8 @@
-﻿using WSClient;
-using System.Threading.Tasks;
+﻿using System;
 using System.Linq;
-using System;
 using System.Threading;
+using System.Threading.Tasks;
+using WSClient;
 
 namespace Websocket.Client
 {
@@ -10,10 +10,7 @@ namespace Websocket.Client
     {
         private static async Task Main()
         {
-            ThreadPool.SetMinThreads(100, 100);
-
-
-            await Task.WhenAll(Enumerable.Range(1, 100).Select(x => new ClientRoom(x).StartRoom()));
+            await Task.WhenAll(Enumerable.Range(1, 1).Select(x => new ClientRoom(x).StartRoom()));
 
             Console.Read();
         }

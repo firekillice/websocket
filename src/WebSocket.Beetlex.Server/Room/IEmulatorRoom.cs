@@ -1,6 +1,7 @@
 ﻿using System;
 using BeetleX;
 using Carbon.Match.Contact;
+using Server.Protocols;
 
 namespace Carbon.Match.Room
 {
@@ -19,7 +20,7 @@ namespace Carbon.Match.Room
         /// <param name="pid"></param>
         /// <param name="session"></param>
         /// <param name="pvpMesage"></param>
-        public void QueueMessage(long pid, ISession session, PVPMessage pvpMesage);
+        public void QueueMessage(long pid, ISession session, PvPMessage pvpMesage);
 
         /// <summary>
         /// 玩家离开

@@ -1,11 +1,9 @@
-﻿
-using BeetleX.Http.WebSockets;
-using Google.Protobuf;
+﻿using Google.Protobuf;
+using Server.Protocols;
 using System;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
-using WebSocket.Contract;
 
 namespace WSClient
 {
@@ -32,12 +30,12 @@ namespace WSClient
         {
             try
             {
-                var webSocketUrl = $@"ws://10.10.50.163:80";
+                var webSocketUrl = $"ws://localhost:8975/ws";
                 var clientWebSocket = new ClientWebSocket();
                 var serverUri = new Uri(webSocketUrl);
                 clientWebSocket.Options.SetRequestHeader("player-id", pid.ToString());
                 clientWebSocket.Options.SetRequestHeader("room-id", roomId);
-                clientWebSocket.ConnectAsync(serverUri, CancellationToken.None).Wait();
+                await clientWebSocket.ConnectAsync(serverUri, CancellationToken.None);
 
                 if (clientWebSocket.State != WebSocketState.Open)
                 {
@@ -49,7 +47,7 @@ namespace WSClient
                 {
                     if (clientWebSocket.State == WebSocketState.Open)
                     {
-                        var pvpMessage = new PVPMessage
+                        var pvpMessage = new PvPMessage
                         {
                             Type = 1,
                             Flags = 50,
@@ -63,9 +61,9 @@ namespace WSClient
                         {
                             rawBytes[i] = (byte)new Random().Next(1, 254);
                         }
-                        pvpMessage.Raw = ByteString.CopyFrom(rawBytes);
+                        pvpMessage.Body = ByteString.CopyFrom(rawBytes);
 
-                        //Console.WriteLine($"{ this.pid} sending message");
+                       // Console.WriteLine($"{ this.pid} sending message");
 
                         var sendBytes = pvpMessage.ToByteArray();
                         var bytesToSend = new ArraySegment<byte>(sendBytes);
@@ -75,8 +73,8 @@ namespace WSClient
                         var timeOut = new CancellationTokenSource(2000).Token;
                         var response = await clientWebSocket.ReceiveAsync(new ArraySegment<byte>(buffer), timeOut);
 
-                        var rcvpvpmessage = PVPMessage.Parser.ParseFrom(buffer, 0, response.Count);
-                        //Console.WriteLine($"{ this.pid } receving message");
+                        var rcvpvpmessage = PvPMessage.Parser.ParseFrom(buffer, 0, response.Count);
+                       // Console.WriteLine($"{ this.pid } receving message");
 
                         var randomResult = new Random().Next(100);
                         if (randomResult < 20)
@@ -88,6 +86,12 @@ namespace WSClient
                         else if (randomResult < 40)
                         {
                             Console.WriteLine("random break");
+                            break;
+                        }
+                        else if (randomResult < 60)
+                        {
+                            await clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, default);
+                            Console.WriteLine("random shutdown");
                             break;
                         }
                     }
