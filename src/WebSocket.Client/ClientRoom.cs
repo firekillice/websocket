@@ -2,6 +2,8 @@
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
+using WebSocket.Client;
+using WebSocket.Client.Replay;
 
 namespace WSClient
 {
@@ -11,32 +13,34 @@ namespace WSClient
         private readonly long home;
         private readonly long away;
         private string? pVPRoomId;
+        private readonly WebSocketHost wsHostInfo;
 
         public ClientRoom(long roomId)
         {
-            if (roomId > 10 * 10000)
-            {
-                throw new ArgumentException("room_id_exceed");
-            }
-
-            this.clientRoomId = roomId;
-            this.home = roomId * 1000;
-            this.away = roomId * 1000 + 1;
+            this.clientRoomId = roomId * 3;
+            this.home = roomId * 3 - 2;
+            this.away = roomId * 3 - 1;
+            this.wsHostInfo = ClientConfig.GetHost(roomId);
         }
 
-        public async Task StartRoom()
+        public async Task StartRoom(ReplayReader.BiInputs biInputs)
         {
-            this.pVPRoomId = await CreateRoomAsync("PvP", this.clientRoomId, this.home, this.away);
-            if (string.IsNullOrEmpty(this.pVPRoomId))
+            while (true)
             {
-                throw new ArgumentException("create_room_error");
-            }
-            Console.WriteLine($"CreateRoom Success RoomId {this.pVPRoomId}");
+                this.pVPRoomId = await CreateRoomAsync("PvP", this.clientRoomId, this.home, this.away);
+                if (string.IsNullOrEmpty(this.pVPRoomId))
+                {
+                    throw new ArgumentException("create_room_error");
+                }
+                Console.WriteLine($"CreateRoom Success RoomId {this.pVPRoomId}");
 
-            await Task.WhenAll(new PBClient(this.home, this.pVPRoomId).RunAsync(), new PBClient(this.away, this.pVPRoomId).RunAsync());
+                await Task.WhenAll(
+                    new ClientEmulator(this.home, this.pVPRoomId, this.wsHostInfo.WebSocket, biInputs.HomeInputs).RunAsync(),
+                    new ClientEmulator(this.away, this.pVPRoomId, this.wsHostInfo.WebSocket, biInputs.AwayInputs).RunAsync());
+            }
         }
 
-        private static async Task<string> CreateRoomAsync(string roomType, long roomId, long home, long away)
+        private async Task<string> CreateRoomAsync(string roomType, long roomId, long home, long away)
         {
             try
             {
@@ -53,7 +57,7 @@ namespace WSClient
                     RoomId = roomId,
                     Type = roomType,
                 };
-                var response = await httpClient.PostAsJsonAsync($"http://localhost:8975/sys/createroom", request);
+                var response = await httpClient.PostAsJsonAsync($"{this.wsHostInfo.Http}sys/createroom", request);
                 if (response.StatusCode == System.Net.HttpStatusCode.OK)
                 {
                     var roomInfo = (await response.Content.ReadFromJsonAsync<CreateRoomResponseDto>());

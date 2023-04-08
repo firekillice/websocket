@@ -49,7 +49,7 @@ namespace Carbon.Match.New.Networking
             });
         }
 
-        public async Task ReceiveAsync(HttpContext context, WebSocket socket, Action<WebSocketMessageType, byte[], int> handleMessage)
+        public async Task ReceiveAsync(HttpContext context, System.Net.WebSockets.WebSocket socket, Action<WebSocketMessageType, byte[], int> handleMessage)
         {
             while (socket.State == WebSocketState.Open)
             {

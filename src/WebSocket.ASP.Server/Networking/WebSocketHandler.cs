@@ -18,7 +18,7 @@ namespace Carbon.Match.New.Networking
         private readonly ILogger<WebSocketHandler> logger;
         private readonly IServiceProvider serviceProvider;
 
-        private static readonly ConcurrentDictionary<string, WebSocket> sockets = new();
+        private static readonly ConcurrentDictionary<string, System.Net.WebSockets.WebSocket> sockets = new();
 
         public WebSocketHandler(IServiceProvider serviceProvider, ILogger<WebSocketHandler> logger)
         {
@@ -36,7 +36,7 @@ namespace Carbon.Match.New.Networking
         /// <param name="buffer"></param>
         /// <param name="count"></param>
         /// <exception cref="Exception"></exception>
-        public void Receive(HttpContext context, WebSocket websocket, byte[] buffer, int count)
+        public void Receive(HttpContext context, System.Net.WebSockets.WebSocket websocket, byte[] buffer, int count)
         {
             var pidString = context.Request.Headers[WEBSOCKET_PLAYER_ID];
             var roomId = context.Request.Headers[WEBSOCKET_ROOM_ID];
@@ -71,7 +71,7 @@ namespace Carbon.Match.New.Networking
  
         }
 
-        public virtual void OnConnected(HttpContext context, WebSocket websocket)
+        public virtual void OnConnected(HttpContext context, System.Net.WebSockets.WebSocket websocket)
         {
             var pidString = context.Request.Headers[WEBSOCKET_PLAYER_ID];
             var roomId = context.Request.Headers[WEBSOCKET_ROOM_ID];
@@ -110,7 +110,7 @@ namespace Carbon.Match.New.Networking
             }
         }
 
-        public void OnDisconnected(HttpContext context, WebSocket websocket)
+        public void OnDisconnected(HttpContext context, System.Net.WebSockets.WebSocket websocket)
         {
             if (context.Request.Headers.TryGetValue(WEBSOCKET_PLAYER_ID, out var pidString) && context.Request.Headers.TryGetValue(WEBSOCKET_ROOM_ID, out var roomId))
             {
