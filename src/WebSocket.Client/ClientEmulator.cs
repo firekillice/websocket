@@ -22,7 +22,6 @@ namespace WSClient
         public MessageComplexHandler(ImmutableArray<Record> inputs)
         {
             this.records = inputs;
-            Console.WriteLine($"record length {inputs.Length}");
         }
 
         private void SetPingTimer(ClientWebSocket socket)
@@ -39,7 +38,6 @@ namespace WSClient
         private void AddTimer(long interval, Func<Task> handler, ClientWebSocket socket)
         {
             var timer = new System.Timers.Timer();
-            Console.WriteLine($"add timer {interval}");
             timer.Interval = interval;
             timer.Elapsed += (s, e) => handler();
             timer.AutoReset = false;
@@ -56,7 +54,7 @@ namespace WSClient
 
                 if (this.index <= this.records.Length - 2)
                 {
-                    while(this.index <= this.records.Length - 2 && this.records[this.index + 1].TimestampMs == this.records[this.index].TimestampMs)
+                    while(this.index <= this.records.Length - 2 && this.records[this.index + 1].TimestampMs <= this.records[this.index].TimestampMs)
                     {
                         await this.sendMessageAsync(socket, this.records[this.index], false);
                         this.index++;
@@ -65,75 +63,57 @@ namespace WSClient
                 }
             }
 
-           this.AddTimer(new Random().Next(500), handleRecord, socket);
+           this.AddTimer(new Random().Next(1,500), handleRecord, socket);
            this.SetPingTimer(socket);
         }
 
         private async Task sendMessageAsync(ClientWebSocket socket, Record r, bool isPing)
         {
-            if (socket.State == WebSocketState.Open)
+            try
             {
-                if (!isPing)
+                if (socket.State == WebSocketState.Open)
                 {
-                    var sendBytes = default(byte[]);
-                    lock (this.locker)
+                    if (!isPing)
                     {
-                        sendBytes = MessageConverter.Write(r.Message.ToByteArray(), (uint)Interlocked.Increment(ref this.sequence), 0).ToByteArray();
+                        var sendBytes = default(byte[]);
+                        lock (this.locker)
+                        {
+                            sendBytes = MessageConverter.Write(r.Message.ToByteArray(), (uint)Interlocked.Increment(ref this.sequence), 0).ToByteArray();
+                        }
+
+                        var bytesToSend = new ArraySegment<byte>(sendBytes);
+                        await socket.SendAsync(bytesToSend, WebSocketMessageType.Binary, true, CancellationToken.None);
+
+                        //Console.WriteLine($"send message bytes {bytesToSend.Count} , index {this.index}");
                     }
+                    else
+                    {
+                        var pvpMessage = default(PvPMessage);
+                        lock (this.locker)
+                        {
+                            pvpMessage = new PvPMessage
+                            {
+                                Type = -20,
+                                Flags = 50,
+                                Seq = (uint)Interlocked.Increment(ref this.sequence),
+                                Sseq = 0
+                            };
+                        }
 
-                    var bytesToSend = new ArraySegment<byte>(sendBytes);
-                    await socket.SendAsync(bytesToSend, WebSocketMessageType.Binary, true, CancellationToken.None);
-
-                    Console.WriteLine($"send message bytes {bytesToSend.Count} , index {this.index}");
+                        var bytesToSend = new ArraySegment<byte>(pvpMessage.ToByteArray());
+                        await socket.SendAsync(bytesToSend, WebSocketMessageType.Binary, true, CancellationToken.None);
+                    }
                 }
                 else
                 {
-                    var pvpMessage = default(PvPMessage);
-                    lock (this.locker)
-                    {
-                        pvpMessage = new PvPMessage
-                        {
-                            Type = -20,
-                            Flags = 50,
-                            Seq = (uint)Interlocked.Increment(ref this.sequence),
-                            Sseq = 0
-                        };
-                    }
-
-                    var bytesToSend = new ArraySegment<byte>(pvpMessage.ToByteArray());
-                    await socket.SendAsync(bytesToSend, WebSocketMessageType.Binary, true, CancellationToken.None);
+                    Console.WriteLine($"socket status {socket.State} ");
                 }
             }
-            else
+            catch (Exception ex)
             {
-                Console.WriteLine($"socket status {socket.State} ");
+                Console.WriteLine($"socket exception {ex.Message} ");
             }
-        }
-    }
-
-    public static class WebsocketMonkey
-    {
-        public static async Task<bool> AffectAsync(ClientWebSocket socket)
-        {
-            var randomResult = new Random().Next(100);
-            if (randomResult < 20)
-            {
-                socket.Abort();
-                Console.WriteLine("random close+break");
-                return true;
-            }
-            else if (randomResult < 40)
-            {
-                Console.WriteLine("random break");
-                return true;
-            }
-            else if (randomResult < 60)
-            {
-                await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, default);
-                Console.WriteLine("random shutdown");
-                return true;
-            }
-            return false;
+            
         }
     }
 
@@ -143,7 +123,6 @@ namespace WSClient
         private readonly string roomId;
         private readonly string wshost;
         private MessageComplexHandler handler;
-        private bool finished;
 
         public ClientEmulator(long pid, string roomId, string wshost, ImmutableArray<Record> records)
         {
@@ -185,10 +164,9 @@ namespace WSClient
                 var buffer = new byte[16384 * 3];
                 try
                 {
-                    //var response = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), new CancellationTokenSource(5000).Token);
                     var response = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
                     var rcvpvpmessage = PvPMessage.Parser.ParseFrom(buffer, 0, response.Count);
-                    Console.WriteLine($"{this.pid} receving message");
+                   // Console.WriteLine($"{this.pid} receving message");
                 }
                 catch (OperationCanceledException)
                 {
@@ -197,7 +175,6 @@ namespace WSClient
 
                 await Task.Delay(5);
             }
-            this.finished = true;
         }
     }
 }

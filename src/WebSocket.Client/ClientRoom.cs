@@ -21,6 +21,7 @@ namespace WSClient
             this.home = roomId * 3 - 2;
             this.away = roomId * 3 - 1;
             this.wsHostInfo = ClientConfig.GetHost(roomId);
+            Console.WriteLine( $"room id {roomId}");
         }
 
         public async Task StartRoom(ReplayReader.BiInputs biInputs)
@@ -32,7 +33,7 @@ namespace WSClient
                 {
                     throw new ArgumentException("create_room_error");
                 }
-                Console.WriteLine($"CreateRoom Success RoomId {this.pVPRoomId}");
+               // Console.WriteLine($"CreateRoom Success RoomId {this.pVPRoomId}");
 
                 await Task.WhenAll(
                     new ClientEmulator(this.home, this.pVPRoomId, this.wsHostInfo.WebSocket, biInputs.HomeInputs).RunAsync(),

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,8 +13,17 @@ namespace Websocket.Client
     {
         private static async Task Main()
         {
+            List<Task> tasks = new List<Task>();
             var inputs = LoadReplayRecord();
-            await Task.WhenAll(Enumerable.Range(1, 1).Select(x => new ClientRoom(x).StartRoom(inputs)));
+            for (var i = 1; i <= 500; i += 100)
+            {
+                Console.WriteLine($"start index {i}");
+                var index = i;
+                tasks.AddRange(Enumerable.Range(index, 100).Select(x => new ClientRoom(x).StartRoom(inputs)));
+              
+                Task.Delay(1000).Wait();
+            }
+            await Task.WhenAll(tasks);
 
             Console.Read();
         }
