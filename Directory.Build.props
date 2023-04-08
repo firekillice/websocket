@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <SolutionDir>$(MSBuildThisFileDirectory)</SolutionDir>
+    <BaseIntermediateOutputPath>$([System.IO.Path]::Combine($(SolutionDir), target, $(MSBuildProjectName), obj))</BaseIntermediateOutputPath>
+    <BaseOutputPath>$([System.IO.Path]::Combine($(SolutionDir), target, $(MSBuildProjectName), bin))</BaseOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>1701;1702;CS1591</NoWarn>
+  </PropertyGroup>
+
+</Project>
