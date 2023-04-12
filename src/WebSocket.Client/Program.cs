@@ -15,11 +15,12 @@ namespace Websocket.Client
         {
             List<Task> tasks = new List<Task>();
             var inputs = LoadReplayRecord();
-            for (var i = 1; i <= 500; i += 100)
+            var step = 100;
+            for (var i = 1; i <= 5000; i += step)
             {
                 Console.WriteLine($"start index {i}");
                 var index = i;
-                tasks.AddRange(Enumerable.Range(index, 100).Select(x => new ClientRoom(x).StartRoom(inputs)));
+                tasks.AddRange(Enumerable.Range(index, step).Select(x => new ClientRoom(x).StartRoom(inputs)));
               
                 Task.Delay(1000).Wait();
             }

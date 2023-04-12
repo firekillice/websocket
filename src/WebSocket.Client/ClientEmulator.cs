@@ -18,6 +18,8 @@ namespace WSClient
         private readonly ImmutableArray<Record> records;
         private int sequence = 0;
         private object locker = new object();
+        private System.Timers.Timer pingTimer;
+       
 
         public MessageComplexHandler(ImmutableArray<Record> inputs)
         {
@@ -26,13 +28,21 @@ namespace WSClient
 
         private void SetPingTimer(ClientWebSocket socket)
         {
-            var timer = new System.Timers.Timer(2000);
-            timer.Elapsed += async (s, e) =>
+            this.pingTimer = new System.Timers.Timer(2000);
+            this.pingTimer.Elapsed += async (s, e) =>
             {
                 await sendMessageAsync(socket, null, true);
             };
-            timer.AutoReset = true;
-            timer.Start();
+            this.pingTimer.AutoReset = true;
+            this.pingTimer.Start();
+        }
+
+        public void Destroy()
+        {
+            if (this.pingTimer != default)
+            {
+                this.pingTimer.Stop();
+            }
         }
 
         private void AddTimer(long interval, Func<Task> handler, ClientWebSocket socket)
@@ -50,11 +60,16 @@ namespace WSClient
             {
                 await this.sendMessageAsync(socket, this.records[this.index], false);
                 this.index++;
-                if (this.index == records.Length - 1) { socket.Abort(); Console.WriteLine($"abort socket, index {this.index}"); }
+                if (this.index == records.Length - 1)
+                {
+                    await socket.CloseAsync(
+                        WebSocketCloseStatus.NormalClosure, "normal", CancellationToken.None);
+                        Console.WriteLine($"abort socket, index {this.index}");
+                }
 
                 if (this.index <= this.records.Length - 2)
                 {
-                    while(this.index <= this.records.Length - 2 && this.records[this.index + 1].TimestampMs <= this.records[this.index].TimestampMs)
+                    while (this.index <= this.records.Length - 2 && this.records[this.index + 1].TimestampMs <= this.records[this.index].TimestampMs)
                     {
                         await this.sendMessageAsync(socket, this.records[this.index], false);
                         this.index++;
@@ -63,8 +78,8 @@ namespace WSClient
                 }
             }
 
-           this.AddTimer(new Random().Next(1,500), handleRecord, socket);
-           this.SetPingTimer(socket);
+            this.AddTimer(new Random().Next(1, 500), handleRecord, socket);
+            this.SetPingTimer(socket);
         }
 
         private async Task sendMessageAsync(ClientWebSocket socket, Record r, bool isPing)
@@ -104,16 +119,12 @@ namespace WSClient
                         await socket.SendAsync(bytesToSend, WebSocketMessageType.Binary, true, CancellationToken.None);
                     }
                 }
-                else
-                {
-                    Console.WriteLine($"socket status {socket.State} ");
-                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"socket exception {ex.Message} ");
             }
-            
+
         }
     }
 
@@ -123,6 +134,8 @@ namespace WSClient
         private readonly string roomId;
         private readonly string wshost;
         private MessageComplexHandler handler;
+        private ClientWebSocket websocket;
+        private bool canceled = false;
 
         public ClientEmulator(long pid, string roomId, string wshost, ImmutableArray<Record> records)
         {
@@ -132,24 +145,45 @@ namespace WSClient
             this.handler = new MessageComplexHandler(records);
         }
 
+        public  async Task DestoryAsync()
+        {
+            if (this.websocket.State == WebSocketState.Open)
+            {
+                await this.websocket.CloseAsync(
+                        WebSocketCloseStatus.NormalClosure, "normal", CancellationToken.None);
+                Console.WriteLine("dispose emulator");
+            }
+            this.canceled = true;
+            this.handler.Destroy();
+        }
         public async Task RunAsync()
         {
             try
             {
-                var clientWebSocket = new ClientWebSocket();
+                this.websocket = new ClientWebSocket();
                 var serverUri = new Uri(this.wshost);
-                clientWebSocket.Options.SetRequestHeader("player-id", pid.ToString());
-                clientWebSocket.Options.SetRequestHeader("room-id", roomId);
-                await clientWebSocket.ConnectAsync(serverUri, CancellationToken.None);
-
-                if (clientWebSocket.State != WebSocketState.Open)
+                this.websocket.Options.SetRequestHeader("player-id", pid.ToString());
+                this.websocket.Options.SetRequestHeader("room-id", roomId);
+                while (!this.canceled && this.websocket.State != WebSocketState.Open)
                 {
-                    await clientWebSocket.ConnectAsync(serverUri, CancellationToken.None);
+                    try
+                    {
+                        await this.websocket.ConnectAsync(serverUri, CancellationToken.None);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"catch exception {ex.Message} {this.wshost} {this.pid}");
+                        await Task.Delay(5000);
+                    }
                 }
 
-                this.handler.StarSendTimer(clientWebSocket);
+                if (this.websocket.State == WebSocketState.Open)
+                {
+                    this.handler.StarSendTimer(this.websocket);
 
-                await Task.Run(async () => await RecvAsync(clientWebSocket));
+                    await Task.Run(async () => await RecvAsync(this.websocket));
+                }
+
             }
             catch (Exception ex)
             {
@@ -166,7 +200,7 @@ namespace WSClient
                 {
                     var response = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
                     var rcvpvpmessage = PvPMessage.Parser.ParseFrom(buffer, 0, response.Count);
-                   // Console.WriteLine($"{this.pid} receving message");
+                    // Console.WriteLine($"{this.pid} receving message");
                 }
                 catch (OperationCanceledException)
                 {

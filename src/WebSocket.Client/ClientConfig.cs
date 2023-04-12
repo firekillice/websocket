@@ -6,8 +6,8 @@ namespace WebSocket.Client
 
     public static class ClientConfig
     {
-        //public  readonly static List<WebSocketHost> Hosts = new() {
-        //    new("http://10.10.50.163:8975/","ws://10.10.50.163:8975/ws"), 
+        //public readonly static List<WebSocketHost> Hosts = new() {
+        //    new("http://10.10.50.163:8975/","ws://10.10.50.163:8975/ws"),
         //};
         public readonly static List<WebSocketHost> Hosts = new() {
             new("http://192.168.30.27:8975/","ws://192.168.30.27:8975/ws"),

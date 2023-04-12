@@ -33,11 +33,13 @@ namespace WSClient
                 {
                     throw new ArgumentException("create_room_error");
                 }
-               // Console.WriteLine($"CreateRoom Success RoomId {this.pVPRoomId}");
+                var homeEmulator = new ClientEmulator(this.home, this.pVPRoomId, this.wsHostInfo.WebSocket, biInputs.HomeInputs);
+                var awayEmulator = new ClientEmulator(this.away, this.pVPRoomId, this.wsHostInfo.WebSocket, biInputs.AwayInputs);
+                await Task.WhenAny(homeEmulator.RunAsync(), awayEmulator.RunAsync());
+                await homeEmulator.DestoryAsync();
+                await awayEmulator.DestoryAsync();
 
-                await Task.WhenAll(
-                    new ClientEmulator(this.home, this.pVPRoomId, this.wsHostInfo.WebSocket, biInputs.HomeInputs).RunAsync(),
-                    new ClientEmulator(this.away, this.pVPRoomId, this.wsHostInfo.WebSocket, biInputs.AwayInputs).RunAsync());
+                await Task.Delay(new Random().Next(2000,5000));
             }
         }
 
