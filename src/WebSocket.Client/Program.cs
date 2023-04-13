@@ -16,7 +16,7 @@ namespace Websocket.Client
             List<Task> tasks = new List<Task>();
             var inputs = LoadReplayRecord();
             var step = 100;
-            for (var i = 1; i <= 5000; i += step)
+            for (var i = 1; i <= 2000; i += step)
             {
                 Console.WriteLine($"start index {i}");
                 var index = i;
