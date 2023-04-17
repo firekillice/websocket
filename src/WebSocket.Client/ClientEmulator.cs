@@ -19,6 +19,7 @@ namespace WSClient
         private int sequence = 0;
         private object locker = new object();
         private System.Timers.Timer pingTimer;
+        private bool canceled = false;
        
 
         public MessageComplexHandler(ImmutableArray<Record> inputs)
@@ -43,15 +44,19 @@ namespace WSClient
             {
                 this.pingTimer.Stop();
             }
+            this.canceled = true;
         }
 
         private void AddTimer(long interval, Func<Task> handler, ClientWebSocket socket)
         {
-            var timer = new System.Timers.Timer();
-            timer.Interval = interval;
-            timer.Elapsed += (s, e) => handler();
-            timer.AutoReset = false;
-            timer.Start();
+            if (!this.canceled)
+            {
+                var timer = new System.Timers.Timer();
+                timer.Interval = interval;
+                timer.Elapsed += (s, e) => handler();
+                timer.AutoReset = false;
+                timer.Start();
+            }
         }
 
         public void StarSendTimer(ClientWebSocket socket)
@@ -64,7 +69,7 @@ namespace WSClient
                 {
                     await socket.CloseAsync(
                         WebSocketCloseStatus.NormalClosure, "normal", CancellationToken.None);
-                        Console.WriteLine($"abort socket, index {this.index}");
+                        Console.WriteLine($"close socket, index {this.index}");
                 }
 
                 if (this.index <= this.records.Length - 2)
@@ -122,7 +127,7 @@ namespace WSClient
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"socket exception {ex.Message} ");
+                Console.WriteLine($"send exception {ex.Message} ");
             }
 
         }
@@ -164,50 +169,40 @@ namespace WSClient
                 var serverUri = new Uri(this.wshost);
                 this.websocket.Options.SetRequestHeader("player-id", pid.ToString());
                 this.websocket.Options.SetRequestHeader("room-id", roomId);
-                while (!this.canceled && this.websocket.State != WebSocketState.Open)
+                try
                 {
-                    try
-                    {
-                        await this.websocket.ConnectAsync(serverUri, CancellationToken.None);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"catch exception {ex.Message} {this.wshost} {this.pid}");
-                        await Task.Delay(5000);
-                    }
+                    await this.websocket.ConnectAsync(serverUri, new CancellationTokenSource(5000).Token);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"catch exception {ex.Message} {this.wshost} {this.pid}");
+                    return;
                 }
 
-                if (this.websocket.State == WebSocketState.Open)
-                {
-                    this.handler.StarSendTimer(this.websocket);
-
-                    await Task.Run(async () => await RecvAsync(this.websocket));
-                }
-
+                this.handler.StarSendTimer(this.websocket);
+                await Task.Run(async () => await RecvAsync(this.websocket));
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"catch exception {ex.Message} ");
+                Console.WriteLine($"catch exception {ex.Message} when RunAsync");
             }
         }
 
         public async Task RecvAsync(ClientWebSocket socket)
         {
-            while (socket.State == WebSocketState.Open)
+            while (socket.State == WebSocketState.Open && !this.canceled)
             {
                 var buffer = new byte[16384 * 3];
                 try
                 {
                     var response = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                    var rcvpvpmessage = PvPMessage.Parser.ParseFrom(buffer, 0, response.Count);
-                    // Console.WriteLine($"{this.pid} receving message");
                 }
-                catch (OperationCanceledException)
+                catch (Exception ex)
                 {
-                    continue;
+                    Console.WriteLine($"receive exception {ex.Message} ");
                 }
 
-                await Task.Delay(5);
+                await Task.Delay(500);
             }
         }
     }

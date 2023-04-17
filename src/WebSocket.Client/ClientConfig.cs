@@ -15,8 +15,10 @@ namespace WebSocket.Client
         //};
 
         public readonly static List<WebSocketHost> Hosts = new() {
-            //new("http://101.200.63.37:8975/","ws://101.200.63.37:8975/ws"),
+            new("http://101.200.63.37:8975/","ws://101.200.63.37:8975/ws"),
             new("http://39.105.212.169:8975/","ws://39.105.212.169:8975/ws")
+            //new("http://39.107.221.109:8975/","ws://39.107.221.109:8975/ws"),
+            //new("http://123.57.53.244:8975/","ws://123.57.53.244:8975/ws")
         };
         public static WebSocketHost GetHost(long index)
         {

@@ -21,25 +21,53 @@ namespace WSClient
             this.home = roomId * 3 - 2;
             this.away = roomId * 3 - 1;
             this.wsHostInfo = ClientConfig.GetHost(roomId);
-            Console.WriteLine( $"room id {roomId}");
+            Console.WriteLine($"room id {roomId}");
         }
 
         public async Task StartRoom(ReplayReader.BiInputs biInputs)
         {
+            var homeEmulator = default(ClientEmulator);
+            var awayEmulator = default(ClientEmulator);
             while (true)
             {
-                this.pVPRoomId = await CreateRoomAsync("PvP", this.clientRoomId, this.home, this.away);
-                if (string.IsNullOrEmpty(this.pVPRoomId))
+                try
                 {
-                    throw new ArgumentException("create_room_error");
-                }
-                var homeEmulator = new ClientEmulator(this.home, this.pVPRoomId, this.wsHostInfo.WebSocket, biInputs.HomeInputs);
-                var awayEmulator = new ClientEmulator(this.away, this.pVPRoomId, this.wsHostInfo.WebSocket, biInputs.AwayInputs);
-                await Task.WhenAny(homeEmulator.RunAsync(), awayEmulator.RunAsync());
-                await homeEmulator.DestoryAsync();
-                await awayEmulator.DestoryAsync();
+                    this.pVPRoomId = await CreateRoomAsync("PvP", this.clientRoomId, this.home, this.away);
+                    if (string.IsNullOrEmpty(this.pVPRoomId))
+                    {
+                        await Task.Delay(new Random().Next(2000, 5000));
+                        continue;
+                    }
+                    homeEmulator = new ClientEmulator(this.home, this.pVPRoomId, this.wsHostInfo.WebSocket, biInputs.HomeInputs);
+                    awayEmulator = new ClientEmulator(this.away, this.pVPRoomId, this.wsHostInfo.WebSocket, biInputs.AwayInputs);
+                    await Task.WhenAny(homeEmulator.RunAsync(), awayEmulator.RunAsync());
 
-                await Task.Delay(new Random().Next(2000,5000));
+                    try
+                    {
+                        await homeEmulator.DestoryAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"homeEmulator catch {ex.Message}");
+                    }
+
+                    try
+                    {
+                        await awayEmulator.DestoryAsync();
+                    }
+                    catch (Exception ex)
+                    { 
+                        Console.WriteLine($"awayEmulator catch {ex.Message}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"StartRoom cactch {ex.Message}");
+                }
+                finally
+                {
+                    await Task.Delay(new Random().Next(2000, 5000));
+                }
             }
         }
 
@@ -69,6 +97,7 @@ namespace WSClient
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"CreateRoomAsync{ex.Message}");
             }
             return null;
         }
